@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vault laboratory — ICP-Brasil, PKI, dynamic credentials</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header>
+    <div class="wrap header-inner">
+      <p class="eyebrow">Laboratory</p>
+      <h1>Vault for ICP-Brasil</h1>
+      <p class="lede">A service certificate, an A1-shaped ICP-Brasil certificate, and a PostgreSQL role, each issued by Vault and rendered into the process.</p>
+      <p id="source-line">Checking rendered secrets…</p>
+      <p id="checked" class="checked"></p>
+    </div>
+  </header>
+  <div class="stripe" aria-hidden="true"><span></span><span></span><span></span></div>
+  <div class="wrap">
+    <p class="banner">
+      Laboratory only. The ICP-Brasil card follows the DOC-ICP-04 type A1 profile.
+      This hierarchy is not accredited by ITI, it is not chained to AC Raiz da ICP-Brasil,
+      and the CPF in the certificate is fictitious.
+    </p>
+    <main class="grid">
+      <section id="card-icp" class="card card-icp" aria-labelledby="icp-title"></section>
+      <section id="card-tls" class="card card-tls" aria-labelledby="tls-title"></section>
+      <section id="card-db" class="card card-db" aria-labelledby="db-title"></section>
+    </main>
+    <p class="footnote">Each refresh re-reads the rendered files. A new database lease or a renewed certificate shows up without restarting the process. The database password stays on the server.</p>
+  </div>
+  <noscript>This page reads <a href="/api/status">/api/status</a>.</noscript>
+  <script src="/static/app.js"></script>
+</body>
+</html>

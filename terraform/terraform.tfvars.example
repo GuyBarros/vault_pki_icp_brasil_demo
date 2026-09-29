@@ -1,0 +1,16 @@
+# Copy to terraform.tfvars and override what this environment needs.
+# The Podman lab can apply with the variable defaults.
+
+postgres_host             = "postgres"
+vault_address             = "http://127.0.0.1:8200"
+database_default_ttl_seconds = 3600
+
+# Kubernetes only. Create the reviewer token first; see the README.
+# enable_kubernetes_auth       = true
+# kubernetes_host              = "https://kubernetes.default.svc"
+# kubernetes_ca_cert           = <<-EOT
+#   -----BEGIN CERTIFICATE-----
+#   ...
+#   -----END CERTIFICATE-----
+# EOT
+# kubernetes_token_reviewer_jwt = "eyJ..."
