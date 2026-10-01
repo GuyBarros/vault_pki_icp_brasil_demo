@@ -9,14 +9,16 @@ import ssl
 import tempfile
 import threading
 import time
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
+from demo_app import live_tls
 from demo_app.certificates import missing_certificate, summarize_certificate, utc_now
 from demo_app.database import connect_psycopg, fetch_rows
-from demo_app.secrets import LoadedSecret, load_bundle, load_database
+from demo_app.secrets import LoadedSecret, lease_expires_epoch, load_bundle, load_database, load_preferred_bundle
 
 
 PACKAGE_DIR = Path(__file__).resolve().parent
@@ -45,6 +47,7 @@ class Settings:
     postgres_port: int
     postgres_database: str
     postgres_sslmode: str
+    live_secrets_dir: Path
 
 
 def settings_from_env() -> Settings:
@@ -58,6 +61,7 @@ def settings_from_env() -> Settings:
         postgres_port=int(os.environ.get("POSTGRES_PORT", "5432")),
         postgres_database=os.environ.get("POSTGRES_DB", "demo"),
         postgres_sslmode=os.environ.get("POSTGRES_SSLMODE", "disable"),
+        live_secrets_dir=Path(os.environ.get("LIVE_SECRETS_DIR", "/tmp/live-secrets")),
     )
 
 
@@ -78,20 +82,20 @@ def build_status(settings: Settings, connect=connect_psycopg) -> dict:
             heading="ICP-Brasil A1 profile",
             ca_path="/ca/icp",
         ),
-        "tls": _certificate_status(
-            settings,
-            filename="tls.json",
-            fallback_dir="tls",
-            profile="tls-server",
-            heading="Service PKI",
-            ca_path="/ca/tls",
-        ),
+        "tls": tls_status(settings),
         "database": _database_status(settings, connect),
     }
 
 
+def _load_tls(settings: Settings) -> LoadedSecret | None:
+    return load_preferred_bundle(settings.secrets_dir, "tls.json", "tls", settings.live_secrets_dir)
+
+
 def issuing_ca(settings: Settings, filename: str, fallback_dir: str) -> str | None:
-    loaded = load_bundle(settings.secrets_dir, filename, fallback_dir)
+    if filename == "tls.json":
+        loaded = _load_tls(settings)
+    else:
+        loaded = load_bundle(settings.secrets_dir, filename, fallback_dir)
     if loaded is None or loaded.error:
         return None
     pem = loaded.data.get("issuing_ca") or ""
@@ -100,9 +104,26 @@ def issuing_ca(settings: Settings, filename: str, fallback_dir: str) -> str | No
     return pem
 
 
+def tls_status(settings: Settings) -> dict:
+    try:
+        loaded = _load_tls(settings)
+        return _status_from_loaded(settings, loaded, "tls.json", "tls-server", "Service PKI", "/ca/tls")
+    except Exception as error:
+        log.exception("could not read tls.json")
+        return missing_certificate("Service PKI", str(error))
+
+
 def _certificate_status(settings: Settings, filename: str, fallback_dir: str, profile: str, heading: str, ca_path: str) -> dict:
     try:
         loaded = load_bundle(settings.secrets_dir, filename, fallback_dir)
+        return _status_from_loaded(settings, loaded, filename, profile, heading, ca_path)
+    except Exception as error:
+        log.exception("could not read %s", filename)
+        return missing_certificate(heading, str(error))
+
+
+def _status_from_loaded(settings: Settings, loaded: LoadedSecret | None, filename: str, profile: str, heading: str, ca_path: str) -> dict:
+    try:
         if loaded is None:
             return missing_certificate(
                 heading,
@@ -114,10 +135,12 @@ def _certificate_status(settings: Settings, filename: str, fallback_dir: str, pr
         if "BEGIN CERTIFICATE" not in certificate:
             return missing_certificate(heading, f"{filename} does not contain a certificate yet.")
         issuing = loaded.data.get("issuing_ca") or ""
+        public_key = loaded.data.get("public_key") or ""
         return summarize_certificate(
             certificate,
             profile=profile,
             private_key_present=bool(loaded.data.get("private_key")),
+            public_key_pem=public_key or None,
             issuing_ca_pem=issuing or None,
             ca_chain=loaded.data.get("ca_chain"),
             rendered_at=loaded.modified_at,
@@ -128,10 +151,14 @@ def _certificate_status(settings: Settings, filename: str, fallback_dir: str, pr
         return missing_certificate(heading, str(exc))
 
 
+def database_status(settings: Settings, connect=connect_psycopg) -> dict:
+    return _database_status(settings, connect)
+
+
 def _database_status(settings: Settings, connect) -> dict:
     heading = "Dynamic PostgreSQL"
     try:
-        loaded = load_database(settings.secrets_dir)
+        loaded = load_database(settings.secrets_dir, settings.live_secrets_dir)
     except Exception as exc:
         log.exception("could not read database secret")
         return _database_view(present=False, message=str(exc))
@@ -152,7 +179,7 @@ def _database_status(settings: Settings, connect) -> dict:
         lease_id=str(loaded.data.get("lease_id") or ""),
         lease_duration_seconds=_as_int(loaded.data.get("lease_duration")),
         modified_at=loaded.modified_at,
-        modified_epoch=loaded.modified_epoch,
+        expires_epoch=lease_expires_epoch(loaded),
     )
     if not username or not password:
         view["error"] = "The rendered secret has no username or password."
@@ -186,11 +213,13 @@ def _database_view(
     lease_id: str = "",
     lease_duration_seconds: int | None = None,
     modified_at: str = "",
-    modified_epoch: float | None = None,
+    expires_epoch: float | None = None,
 ) -> dict:
     remaining = None
-    if lease_duration_seconds is not None and modified_epoch is not None:
-        remaining = max(0, int(lease_duration_seconds - (time.time() - modified_epoch)))
+    expires_at = ""
+    if expires_epoch is not None:
+        remaining = max(0, int(expires_epoch - time.time()))
+        expires_at = datetime.fromtimestamp(expires_epoch, timezone.utc).isoformat()
     return {
         "present": present,
         "heading": "Dynamic PostgreSQL",
@@ -199,6 +228,7 @@ def _database_view(
         "lease_id": lease_id,
         "lease_duration_seconds": lease_duration_seconds,
         "lease_remaining_seconds": remaining,
+        "lease_expires_at": expires_at,
         "modified_at": modified_at,
         "current_user": "",
         "rows": [],
@@ -228,7 +258,7 @@ class TLSMaterial:
         self._context: ssl.SSLContext | None = None
 
     def context_for(self, settings: Settings) -> ssl.SSLContext | None:
-        loaded = load_bundle(settings.secrets_dir, "tls.json", "tls")
+        loaded = _load_tls(settings)
         if loaded is None or loaded.error:
             return self._current()
         certificate = loaded.data.get("certificate") or ""
@@ -324,6 +354,14 @@ def make_handler(settings: Settings):
                 body = json.dumps(build_status(settings)).encode("utf-8")
                 self._send(200, body, "application/json")
                 return
+            if path == "/api/tls":
+                body = json.dumps(tls_status(settings)).encode("utf-8")
+                self._send(200, body, "application/json")
+                return
+            if path == "/api/database":
+                body = json.dumps(database_status(settings)).encode("utf-8")
+                self._send(200, body, "application/json")
+                return
             if path == "/ca/tls":
                 self._send_ca("tls.json", "tls", "vault-demo-tls-ca.pem")
                 return
@@ -381,6 +419,7 @@ def _serve_tls(settings: Settings) -> None:
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     settings = settings_from_env()
+    live_tls.start(settings.live_secrets_dir)
     if settings.tls_port > 0:
         threading.Thread(target=_serve_tls, args=(settings,), name="https", daemon=True).start()
     server = QuietHTTPServer((settings.bind_host, settings.http_port), make_handler(settings))

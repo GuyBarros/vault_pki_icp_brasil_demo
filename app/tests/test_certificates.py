@@ -1,6 +1,7 @@
 import json
 import unittest
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
@@ -8,6 +9,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID, ObjectIdentifier
 
 from demo_app.certificates import policy_type, summarize_certificate
+
+LAB_ICP = Path(__file__).resolve().parents[2] / "deploy" / "icp"
 
 
 def _certificate(builder):
@@ -21,7 +24,11 @@ def _certificate(builder):
         .sign(key, hashes.SHA256())
     )
     pem = certificate.public_bytes(serialization.Encoding.PEM).decode()
-    return pem
+    public_pem = key.public_key().public_bytes(
+        serialization.Encoding.PEM,
+        serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode()
+    return pem, public_pem
 
 
 def _name(*attributes):
@@ -88,14 +95,16 @@ class CertificateProfileTests(unittest.TestCase):
                 critical=False,
             )
         )
+        pem, public_pem = _certificate(builder)
         view = summarize_certificate(
-            _certificate(builder),
+            pem,
             profile="icp-a1",
             private_key_present=True,
             issuing_ca_pem=None,
             ca_chain=None,
             rendered_at="2026-09-29T00:00:00+00:00",
             ca_path="/ca/icp",
+            public_key_pem=public_pem,
         )
 
         self.assertTrue(all(check["passed"] for check in view["checks"]), view["checks"])
@@ -135,7 +144,7 @@ class CertificateProfileTests(unittest.TestCase):
                 critical=False,
             )
         )
-        pem = _certificate(builder)
+        pem, public_pem = _certificate(builder)
         tls_view = summarize_certificate(
             pem,
             profile="tls-server",
@@ -159,6 +168,56 @@ class CertificateProfileTests(unittest.TestCase):
         self.assertIn("policy", failed)
         self.assertIn("cpf", failed)
         self.assertIn("country", failed)
+        self.assertIn("public-key", failed)
+
+    def test_stored_public_key_must_match_the_certificate(self):
+        subject = _name(x509.NameAttribute(NameOID.COMMON_NAME, "MARIA OLIVEIRA DEMO"))
+        builder = x509.CertificateBuilder().subject_name(subject).issuer_name(subject)
+        pem, public_pem = _certificate(builder)
+        other = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        other_pem = other.public_key().public_bytes(
+            serialization.Encoding.PEM,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        ).decode()
+        matched = summarize_certificate(
+            pem,
+            profile="icp-a1",
+            private_key_present=True,
+            issuing_ca_pem=None,
+            ca_chain=None,
+            rendered_at="2026-09-29T00:00:00+00:00",
+            ca_path="/ca/icp",
+            public_key_pem=public_pem,
+        )
+        mismatched = summarize_certificate(
+            pem,
+            profile="icp-a1",
+            private_key_present=True,
+            issuing_ca_pem=None,
+            ca_chain=None,
+            rendered_at="2026-09-29T00:00:00+00:00",
+            ca_path="/ca/icp",
+            public_key_pem=other_pem,
+        )
+        self.assertTrue(next(check["passed"] for check in matched["checks"] if check["id"] == "public-key"))
+        self.assertFalse(next(check["passed"] for check in mismatched["checks"] if check["id"] == "public-key"))
+
+    def test_laboratory_files_pass_the_a1_profile(self):
+        view = summarize_certificate(
+            (LAB_ICP / "certificate.pem").read_text(encoding="utf-8"),
+            profile="icp-a1",
+            private_key_present=True,
+            issuing_ca_pem=(LAB_ICP / "issuing_ca.pem").read_text(encoding="utf-8"),
+            ca_chain=(LAB_ICP / "ca_chain.pem").read_text(encoding="utf-8"),
+            rendered_at="2026-09-29T00:00:00+00:00",
+            ca_path="/ca/icp",
+            public_key_pem=(LAB_ICP / "public_key.pem").read_text(encoding="utf-8"),
+        )
+        self.assertTrue(all(check["passed"] for check in view["checks"]), view["checks"])
+        self.assertEqual(len(view["chain"]), 3)
+        self.assertIn("11144477735", next(
+            field["value"] for field in view["fields"] if field["label"] == "Subject alternative names"
+        ))
 
 
 if __name__ == "__main__":

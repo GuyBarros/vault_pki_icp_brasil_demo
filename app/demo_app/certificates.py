@@ -4,7 +4,7 @@ The ICP-Brasil view follows DOC-ICP-04 for a type A1 signature certificate:
 RSA of at least 2048 bits, SHA-256, digitalSignature and contentCommitment,
 clientAuth and emailProtection, country BR, and a policy OID under
 2.16.76.1.2.1.n. It does not check the accredited binary layout of the CPF
-otherName. Vault's PKI engine writes that otherName as a string.
+otherName. The laboratory file stores that otherName as a UTF-8 string.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from cryptography import x509
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID, ObjectIdentifier, SignatureAlgorithmOID
 
@@ -73,16 +73,18 @@ def summarize_certificate(
     ca_chain,
     rendered_at: str,
     ca_path: str | None,
+    public_key_pem: str | None = None,
 ) -> dict:
     certificate = x509.load_pem_x509_certificate(_pem_bytes(pem))
     parsed = _parse(certificate)
     chain = _chain_subjects(certificate, issuing_ca_pem, ca_chain)
+    public_key_matches = _public_key_matches(certificate, public_key_pem)
     if profile == "icp-a1":
-        checks = _icp_checks(parsed)
+        checks = _icp_checks(parsed, public_key_matches)
         heading = "ICP-Brasil A1 profile"
         summary = (
-            "Signature certificate shaped like DOC-ICP-04 type A1. "
-            "The issuer is a laboratory CA, not an authority accredited by ITI."
+            "Stored in KV and rendered from there. Vault did not issue this certificate. "
+            "The issuing CA in the chain is the authority that signed it."
         )
     elif profile == "tls-server":
         checks = _tls_checks(parsed)
@@ -105,10 +107,22 @@ def summarize_certificate(
         _field("Extended key usage", ", ".join(parsed["extended_key_usage"]) or "none"),
         _field("Policies", _policy_text(parsed["policies"])),
         _field("Subject alternative names", _san_text(parsed["sans"])),
-        _field("Private key", "rendered next to the certificate" if private_key_present else "missing"),
+        _field(
+            "Private key",
+            ("rendered from KV" if profile == "icp-a1" else "rendered next to the certificate")
+            if private_key_present
+            else "missing",
+        ),
         _field("Rendered", rendered_at),
     ]
     if profile == "icp-a1":
+        if public_key_matches is True:
+            stored_public_key = "stored in KV and matches this certificate"
+        elif public_key_matches is False:
+            stored_public_key = "stored in KV but does not match this certificate"
+        else:
+            stored_public_key = "missing from the KV secret"
+        fields.append(_field("Stored public key", stored_public_key))
         fields.append(
             _field(
                 "CPF encoding",
@@ -175,7 +189,21 @@ def _parse(certificate: x509.Certificate) -> dict:
     }
 
 
-def _icp_checks(parsed: dict) -> list[dict]:
+def _public_key_matches(certificate: x509.Certificate, public_key_pem: str | None) -> bool | None:
+    if not public_key_pem or "BEGIN PUBLIC KEY" not in public_key_pem:
+        return None
+
+    loaded = serialization.load_pem_public_key(public_key_pem.encode("utf-8"))
+    return loaded.public_bytes(
+        serialization.Encoding.DER,
+        serialization.PublicFormat.SubjectPublicKeyInfo,
+    ) == certificate.public_key().public_bytes(
+        serialization.Encoding.DER,
+        serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+
+
+def _icp_checks(parsed: dict, public_key_matches: bool | None) -> list[dict]:
     policy_oids = [item["oid"] for item in parsed["policies"]]
     other_oids = [item["oid"] for item in parsed["sans"]["other"]]
     usage = set(parsed["key_usage"])
@@ -235,6 +263,12 @@ def _icp_checks(parsed: dict) -> list[dict]:
             "basicConstraints present and CA is false",
             parsed["basic_constraints_present"] and not parsed["is_ca"],
             "CA true" if parsed["is_ca"] else "CA false" if parsed["basic_constraints_present"] else "extension missing",
+        ),
+        _check(
+            "public-key",
+            "KV public key matches the certificate",
+            public_key_matches is True,
+            "matches" if public_key_matches else "missing" if public_key_matches is None else "does not match",
         ),
     ]
 

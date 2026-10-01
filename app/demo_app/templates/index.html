@@ -11,7 +11,7 @@
     <div class="wrap header-inner">
       <p class="eyebrow">Laboratory</p>
       <h1>Vault for ICP-Brasil</h1>
-      <p class="lede">A service certificate, an A1-shaped ICP-Brasil certificate, and a PostgreSQL role, each issued by Vault and rendered into the process.</p>
+      <p class="lede">A service certificate issued by the PKI engine, an ICP-Brasil certificate stored in KV, and a dynamic PostgreSQL role, each rendered into the process.</p>
       <p id="source-line">Checking rendered secrets…</p>
       <p id="checked" class="checked"></p>
     </div>
@@ -28,7 +28,7 @@
       <section id="card-tls" class="card card-tls" aria-labelledby="tls-title"></section>
       <section id="card-db" class="card card-db" aria-labelledby="db-title"></section>
     </main>
-    <p class="footnote">Each refresh re-reads the rendered files. A new database lease or a renewed certificate shows up without restarting the process. The database password stays on the server.</p>
+    <p class="footnote">The service PKI card is green while its certificate is current and turns yellow for the last 10 seconds of that certificate. A new certificate turns that card green again. The database card turns yellow for the last 10 seconds of its 2 minute credential and returns to amber when Vault renders a new role. The database password stays on the server.</p>
   </div>
   <noscript>This page reads <a href="/api/status">/api/status</a>.</noscript>
   <script src="/static/app.js"></script>

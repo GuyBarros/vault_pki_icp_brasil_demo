@@ -15,6 +15,8 @@ services:
     command: ["server", "-dev", "-dev-listen-address=0.0.0.0:8200"]
     ports:
       - "8200:8200"
+    profiles:
+      - local-vault
     healthcheck:
       test: ["CMD", "vault", "status", "-address=http://127.0.0.1:8200"]
       interval: 3s
@@ -42,14 +44,21 @@ services:
   vault-agent:
     image: docker.io/hashicorp/vault:1.20
     user: "0:0"
-    command: ["agent", "-config=/vault/config/agent.hcl"]
+    # The image drops to uid 100. The app reads the same volume as uid 65532,
+    # so the directory must be writable by the agent and world-readable.
+    entrypoint: ["/usr/bin/dumb-init", "--", "/bin/sh", "-c"]
+    command:
+      - |
+        chown 100:1000 /vault/secrets
+        chmod 755 /vault/secrets
+        exec su-exec vault vault agent -config=/vault/config/agent.hcl -config=/vault/approle/agent-vault.hcl
+    extra_hosts:
+      - "host.containers.internal:host-gateway"
+      - "host.docker.internal:host-gateway"
     volumes:
       - ../agent:/vault/config:ro
       - ./secrets:/vault/approle:ro
       - rendered-secrets:/vault/secrets
-    depends_on:
-      vault:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "test", "-s", "/vault/secrets/db.json"]
       interval: 5s

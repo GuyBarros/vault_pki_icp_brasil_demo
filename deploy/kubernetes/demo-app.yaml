@@ -4,6 +4,35 @@ metadata:
   name: demo-app
   namespace: vault-demo
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: demo-app-tls
+  namespace: vault-demo
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["tls-cert", "db-creds"]
+    verbs: ["get"]
+  - apiGroups: ["secrets.hashicorp.com"]
+    resources: ["vaultdynamicsecrets"]
+    resourceNames: ["db-creds"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: demo-app-tls
+  namespace: vault-demo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: demo-app-tls
+subjects:
+  - kind: ServiceAccount
+    name: demo-app
+    namespace: vault-demo
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -31,7 +60,7 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 8080
+              containerPort: 8085
             - name: https
               containerPort: 8443
           env:
@@ -46,7 +75,7 @@ spec:
             - name: POSTGRES_DB
               value: demo
             - name: PORT
-              value: "8080"
+              value: "8085"
             - name: TLS_PORT
               value: "8443"
             - name: HOME
@@ -105,12 +134,15 @@ metadata:
   name: demo-app
   namespace: vault-demo
 spec:
+  type: NodePort
   selector:
     app: demo-app
   ports:
     - name: http
-      port: 8080
+      port: 8085
       targetPort: http
+      nodePort: 30085
     - name: https
       port: 8443
       targetPort: https
+      nodePort: 30443

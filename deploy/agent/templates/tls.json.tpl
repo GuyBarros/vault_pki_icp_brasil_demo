@@ -1,4 +1,4 @@
-{{- with secret "pki_int/issue/demo-server" "common_name=demo.vault.local" "alt_names=localhost" "ip_sans=127.0.0.1" "ttl=72h" -}}
+{{- with secret "pki_int/issue/demo-server" "common_name=demo.vault.local" "alt_names=localhost" "ip_sans=127.0.0.1" "ttl=1m" -}}
 {
   "certificate": {{ .Data.certificate | toJSON }},
   "private_key": {{ .Data.private_key | toJSON }},

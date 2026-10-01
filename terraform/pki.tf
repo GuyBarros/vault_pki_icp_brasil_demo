@@ -64,10 +64,10 @@ resource "vault_pki_secret_backend_intermediate_set_signed" "tls" {
 resource "vault_pki_secret_backend_config_urls" "tls" {
   backend = vault_mount.tls_int.path
   issuing_certificates = [
-    "${var.vault_address}/v1/${local.tls_int_path}/ca",
+    "${var.vault_address}/v1/${local.namespace_path}/${local.tls_int_path}/ca",
   ]
   crl_distribution_points = [
-    "${var.vault_address}/v1/${local.tls_int_path}/crl",
+    "${var.vault_address}/v1/${local.namespace_path}/${local.tls_int_path}/crl",
   ]
 
   depends_on = [vault_pki_secret_backend_intermediate_set_signed.tls]
@@ -77,7 +77,7 @@ resource "vault_pki_secret_backend_role" "demo_server" {
   backend                            = vault_mount.tls_int.path
   name                               = local.tls_role_name
   ttl                                = var.tls_certificate_ttl_seconds
-  max_ttl                            = 2592000
+  max_ttl                            = var.tls_certificate_ttl_seconds
   allow_localhost                    = true
   allow_any_name                     = false
   allow_bare_domains                 = true

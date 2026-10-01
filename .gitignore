@@ -49,3 +49,5 @@ __pycache__/
 .pytest_cache/
 deploy/podman/secrets/*
 !deploy/podman/secrets/.gitkeep
+deploy/kubernetes/.postgres-port-forward.pid
+deploy/kubernetes/.postgres-port-forward.log

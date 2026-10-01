@@ -5,6 +5,7 @@ metadata:
   namespace: vault-demo
 spec:
   vaultConnectionRef: vault
+  namespace: demo
   method: kubernetes
   mount: kubernetes
   kubernetes:

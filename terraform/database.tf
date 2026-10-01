@@ -20,6 +20,23 @@ resource "vault_database_secret_backend_connection" "postgres" {
   verify_connection = true
 }
 
+# Destroyed before the database connection. Vault cannot disable the database
+# mount while credential leases still name a connection that has been removed.
+resource "terraform_data" "database_lease_cleanup" {
+  input = local.namespace_path
+
+  depends_on = [vault_database_secret_backend_connection.postgres]
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = "vault lease revoke -force -prefix database/creds"
+
+    environment = {
+      VAULT_NAMESPACE = self.output
+    }
+  }
+}
+
 resource "vault_database_secret_backend_role" "demo_app" {
   backend     = vault_mount.database.path
   name        = local.database_role

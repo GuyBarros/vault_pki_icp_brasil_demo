@@ -1,1 +1,1 @@
-"""Demo application for Vault PKI, an ICP-Brasil A1 profile, and dynamic database credentials."""
+"""Demo application for a KV-stored ICP-Brasil certificate, Vault PKI, and dynamic database credentials."""

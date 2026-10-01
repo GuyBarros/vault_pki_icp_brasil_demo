@@ -1,8 +1,7 @@
 pid_file = "/tmp/vault-agent.pid"
 
-vault {
-  address = "http://vault:8200"
-}
+# Address, TLS verification, and the Vault namespace come from
+# deploy/podman/secrets/agent-vault.hcl, written by scripts/podman-lab.sh.
 
 auto_auth {
   method "approle" {

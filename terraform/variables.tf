@@ -1,7 +1,7 @@
 variable "database_default_ttl_seconds" {
-  description = "Lifetime of a dynamic PostgreSQL credential before Vault Agent or the Secrets Operator must renew it."
+  description = "Lifetime of a dynamic PostgreSQL credential. The lab default is 2 minutes, and the role max TTL matches it so the next render is a new role."
   type        = number
-  default     = 3600
+  default     = 120
 
   validation {
     condition     = var.database_default_ttl_seconds >= 60
@@ -10,9 +10,9 @@ variable "database_default_ttl_seconds" {
 }
 
 variable "database_max_ttl_seconds" {
-  description = "Maximum lifetime of a dynamic PostgreSQL credential, including renewals."
+  description = "Maximum lifetime of a dynamic PostgreSQL credential, including renewals. The lab default matches the 2 minute lifetime so Vault cannot extend the role."
   type        = number
-  default     = 14400
+  default     = 120
 
   validation {
     condition     = var.database_max_ttl_seconds >= 60
@@ -26,38 +26,34 @@ variable "enable_kubernetes_auth" {
   default     = false
 }
 
-variable "icp_certificate_ttl_seconds" {
-  description = "Default lifetime of an A1-profile certificate. DOC-ICP-04 limits type A1 to one year; the lab default is 72 hours."
-  type        = number
-  default     = 259200
-
-  validation {
-    condition     = var.icp_certificate_ttl_seconds >= 60 && var.icp_certificate_ttl_seconds <= 31536000
-    error_message = "icp_certificate_ttl_seconds must be between 60 seconds and one year."
-  }
+variable "icp_ca_chain_file" {
+  description = "PEM file of the CA certificates above the ICP-Brasil issuer. Empty uses the laboratory root certificate in deploy/icp."
+  type        = string
+  default     = ""
 }
 
-variable "icp_cps_url" {
-  description = "Certificate practice statement URL stamped on A1-profile certificates. This lab URL is not a published DPC."
+variable "icp_certificate_file" {
+  description = "PEM file of the ICP-Brasil end-entity certificate stored in KV. Empty uses the laboratory certificate in deploy/icp."
   type        = string
-  default     = "http://demo.vault.local/dpc"
+  default     = ""
 }
 
-variable "icp_policy_notice" {
-  description = "User notice placed on the laboratory A1 certificate policy."
+variable "icp_issuing_ca_file" {
+  description = "PEM file of the intermediate CA that issued the ICP-Brasil certificate. Empty uses the laboratory issuing CA in deploy/icp."
   type        = string
-  default     = "Politica de Certificado de Assinatura Digital tipo A1 da AC Demonstracao Vault. Laboratorio, sem credenciamento na ICP-Brasil."
+  default     = ""
 }
 
-variable "icp_policy_oid" {
-  description = "Policy OID placed on A1-profile certificates. 2.16.76.1.2.1.n is the A1 arc; 99999 is a laboratory id, not an ITI assignment."
+variable "icp_private_key_file" {
+  description = "PEM file of the ICP-Brasil end-entity private key stored in KV. Empty uses the laboratory key in deploy/icp."
   type        = string
-  default     = "2.16.76.1.2.1.99999"
+  default     = ""
+}
 
-  validation {
-    condition     = can(regex("^([0-9]+\\.)+[0-9]+$", var.icp_policy_oid))
-    error_message = "icp_policy_oid must be a dotted numeric OID."
-  }
+variable "icp_public_key_file" {
+  description = "PEM file of the ICP-Brasil end-entity public key stored in KV. Empty uses the laboratory key in deploy/icp."
+  type        = string
+  default     = ""
 }
 
 variable "kubernetes_ca_cert" {
@@ -123,9 +119,9 @@ variable "tls_allowed_domains" {
 }
 
 variable "tls_certificate_ttl_seconds" {
-  description = "Default lifetime of a service certificate. The lab default is 72 hours."
+  description = "Lifetime of a service certificate. The lab default is 1 minute, and the role max TTL matches it so the next render is a new certificate."
   type        = number
-  default     = 259200
+  default     = 60
 
   validation {
     condition     = var.tls_certificate_ttl_seconds >= 60 && var.tls_certificate_ttl_seconds <= 2592000
@@ -140,7 +136,12 @@ variable "vault_address" {
 }
 
 variable "vault_namespace" {
-  description = "Vault Enterprise namespace. Leave null for Vault OSS or the root namespace."
+  description = "Vault Enterprise namespace this configuration creates. Mounts, policies, and auth methods are configured inside it. A single path segment; a parent in VAULT_NAMESPACE is kept."
   type        = string
-  default     = null
+  default     = "demo"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9_-]+$", var.vault_namespace))
+    error_message = "vault_namespace must be one path segment of letters, numbers, underscores, or hyphens."
+  }
 }

@@ -91,6 +91,7 @@ class StatusTests(unittest.TestCase):
                 postgres_port=5432,
                 postgres_database="demo",
                 postgres_sslmode="disable",
+                live_secrets_dir=root / "live",
             )
 
             def connect(**kwargs):
@@ -122,6 +123,7 @@ class StatusTests(unittest.TestCase):
                 postgres_port=5432,
                 postgres_database="demo",
                 postgres_sslmode="disable",
+                live_secrets_dir=root / "live",
             )
             server = QuietHTTPServer(("127.0.0.1", 0), make_handler(settings))
             thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -135,6 +137,22 @@ class StatusTests(unittest.TestCase):
                 self.assertTrue(body["tls"]["present"])
                 self.assertIn("serverAuth", json.dumps(body["tls"]["checks"]))
                 self.assertNotIn(private_key, json.dumps(body))
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/tls") as response:
+                    tls = json.loads(response.read().decode())
+                self.assertEqual(tls["heading"], "Service PKI")
+                self.assertTrue(tls["present"])
+                self.assertNotIn(private_key, json.dumps(tls))
+                self.assertNotIn("database", tls)
+                (root / "db.json").write_text(
+                    json.dumps({"username": "v-demo", "password": "db-secret", "lease_duration": 120, "lease_renewed_at": 1}),
+                    encoding="utf-8",
+                )
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/database") as response:
+                    database = json.loads(response.read().decode())
+                self.assertEqual(database["heading"], "Dynamic PostgreSQL")
+                self.assertNotIn("db-secret", json.dumps(database))
+                self.assertEqual(database["username"], "v-demo")
+                self.assertTrue(database["lease_expires_at"])
                 with urllib.request.urlopen(f"http://127.0.0.1:{port}/") as response:
                     page = response.read().decode()
                 self.assertIn("Laboratory only", page)
