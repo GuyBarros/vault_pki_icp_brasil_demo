@@ -1,0 +1,19 @@
+# Copy to terraform.tfvars and override what this environment needs.
+# The Podman lab can apply with the variable defaults.
+# To store a real A1 export instead of deploy/icp, set icp_certificate_file,
+# icp_private_key_file, icp_public_key_file, icp_issuing_ca_file, and icp_ca_chain_file.
+
+postgres_host                = "postgres"
+vault_address                = "http://127.0.0.1:8200"
+vault_namespace              = "demo"
+database_default_ttl_seconds = 3600
+
+# Kubernetes only. Create the reviewer token first; see the README.
+# enable_kubernetes_auth       = true
+# kubernetes_host              = "https://kubernetes.default.svc"
+# kubernetes_ca_cert           = <<-EOT
+#   -----BEGIN CERTIFICATE-----
+#   ...
+#   -----END CERTIFICATE-----
+# EOT
+# kubernetes_token_reviewer_jwt = "eyJ..."

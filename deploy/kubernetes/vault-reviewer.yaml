@@ -1,0 +1,21 @@
+# Vault calls the TokenReview API with this account's token.
+# Bind it to system:auth-delegator, then create a token for Terraform:
+#   kubectl -n vault-demo create token vault-auth --duration=24h
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-auth
+  namespace: vault-demo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vault-demo-token-reviewer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: vault-auth
+    namespace: vault-demo

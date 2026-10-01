@@ -1,0 +1,110 @@
+<mxfile host="app.diagrams.net" agent="cursor" version="22.1.0">
+  <diagram id="vault-laboratory" name="Vault laboratory">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="vault" value="Existing Vault Enterprise" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#1b1714;fontColor=#f4efe6;strokeColor=#1b1714;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="490" y="24" width="420" height="56" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="namespace" value="Namespace demo" style="swimlane;html=1;startSize=32;horizontal=1;collapsible=0;fontStyle=1;fontSize=14;fillColor=#f7f5f2;strokeColor=#666666;swimlaneFillColor=#fffcf8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="130" width="1320" height="300" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="pki-root" value="&lt;b&gt;pki_root&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;Vault Demo Root CA&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;" vertex="1" parent="namespace">
+          <mxGeometry x="24" y="48" width="400" height="64" as="geometry"/>
+        </mxCell>
+        <mxCell id="pki-int" value="&lt;b&gt;pki_int&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;Vault Demo Intermediate CA&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;" vertex="1" parent="namespace">
+          <mxGeometry x="24" y="140" width="400" height="64" as="geometry"/>
+        </mxCell>
+        <mxCell id="pki-role" value="&lt;b&gt;role demo-server&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;demo.vault.local · TTL 1 minute&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;" vertex="1" parent="namespace">
+          <mxGeometry x="24" y="216" width="400" height="64" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-pki-1" style="endArrow=classic;html=1;strokeColor=#6c8ebf;endFill=1;" edge="1" parent="namespace" source="pki-root" target="pki-int">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-pki-2" value="issues" style="endArrow=classic;html=1;strokeColor=#6c8ebf;endFill=1;fontSize=11;" edge="1" parent="namespace" source="pki-int" target="pki-role">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="kv-secret" value="&lt;b&gt;kv/icp-brasil&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;certificate · public key · private key&lt;br&gt;issuing CA · chain&lt;br&gt;Stored, not issued&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;" vertex="1" parent="namespace">
+          <mxGeometry x="460" y="48" width="400" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="kv-meta" value="&lt;b&gt;icp-metadata-reader&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;Reads metadata only&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;" vertex="1" parent="namespace">
+          <mxGeometry x="460" y="200" width="400" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-kv" style="endArrow=classic;html=1;dashed=1;strokeColor=#82b366;endFill=1;" edge="1" parent="namespace" source="kv-secret" target="kv-meta">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="db-conn" value="&lt;b&gt;database/postgres&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;Connection to PostgreSQL&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" vertex="1" parent="namespace">
+          <mxGeometry x="896" y="48" width="400" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="db-role" value="&lt;b&gt;role demo-app&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;Dynamic PostgreSQL role&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" vertex="1" parent="namespace">
+          <mxGeometry x="896" y="168" width="400" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-db" value="creates" style="endArrow=classic;html=1;strokeColor=#d6b656;endFill=1;fontSize=11;" edge="1" parent="namespace" source="db-conn" target="db-role">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="runtime" value="Use one runtime" style="swimlane;html=1;startSize=32;horizontal=1;collapsible=0;fontStyle=1;fontSize=14;fillColor=#f7f5f2;strokeColor=#666666;swimlaneFillColor=#fffcf8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="490" width="1320" height="190" as="geometry"/>
+        </mxCell>
+        <mxCell id="k8s" value="&lt;b&gt;Kubernetes&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;Secrets Operator&lt;br&gt;auth/kubernetes · role demo-app&lt;br&gt;port 8085&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;fontSize=13;" vertex="1" parent="runtime">
+          <mxGeometry x="24" y="48" width="400" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="nomad" value="&lt;b&gt;Nomad&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;Vault template&lt;br&gt;policy demo-app&lt;br&gt;port 8080&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;fontSize=13;" vertex="1" parent="runtime">
+          <mxGeometry x="460" y="48" width="400" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="podman" value="&lt;b&gt;Podman&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;Vault Agent&lt;br&gt;auth/approle · role demo-app&lt;br&gt;port 8080&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;fontSize=13;" vertex="1" parent="runtime">
+          <mxGeometry x="896" y="48" width="400" height="120" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="files" value="Rendered files" style="swimlane;html=1;startSize=28;horizontal=1;collapsible=0;fontStyle=1;fontSize=13;fillColor=#f7f5f2;strokeColor=#666666;swimlaneFillColor=#fffcf8;" vertex="1" parent="1">
+          <mxGeometry x="340" y="740" width="720" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="tls-file" value="tls.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=13;" vertex="1" parent="files">
+          <mxGeometry x="16" y="40" width="220" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="icp-file" value="icp.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=13;" vertex="1" parent="files">
+          <mxGeometry x="250" y="40" width="220" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="db-file" value="db.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=13;" vertex="1" parent="files">
+          <mxGeometry x="484" y="40" width="220" height="52" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="app" value="&lt;b&gt;Demo application&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;ICP-Brasil card&lt;br&gt;Service PKI card · yellow for the last 10 seconds&lt;br&gt;PostgreSQL card · password stays on the server&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1b1714;strokeWidth=1.5;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="340" y="910" width="720" height="110" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="browser" value="&lt;b&gt;Browser&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;Three cards&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="340" y="1080" width="300" height="64" as="geometry"/>
+        </mxCell>
+        <mxCell id="postgres" value="&lt;b&gt;PostgreSQL&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;table registros&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="760" y="1080" width="300" height="64" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e-configure" value="Terraform configures" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#1b1714;fontSize=12;" edge="1" parent="1" source="vault" target="namespace">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-read" value="API read" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#1b1714;fontSize=12;" edge="1" parent="1" source="namespace" target="runtime">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-write" value="write" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#1b1714;fontSize=12;" edge="1" parent="1" source="runtime" target="files">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-load" value="read" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#1b1714;fontSize=12;" edge="1" parent="1" source="files" target="app">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-http" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#1b1714;fontSize=12;" edge="1" parent="1" source="app" target="browser">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-sql" value="SQL" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#d6b656;fontSize=12;" edge="1" parent="1" source="app" target="postgres">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

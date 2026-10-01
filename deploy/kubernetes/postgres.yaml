@@ -1,0 +1,89 @@
+# Laboratory database. The password matches the Terraform default in
+# terraform/variables.tf. Vault itself must be able to open this port;
+# the in-cluster name is postgres.vault-demo.svc.cluster.local.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres
+  namespace: vault-demo
+type: Opaque
+stringData:
+  POSTGRES_USER: vault
+  POSTGRES_PASSWORD: vault-lab-password
+  POSTGRES_DB: demo
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: vault-demo
+data:
+  01-registros.sql: |
+    CREATE TABLE IF NOT EXISTS registros (
+        id integer PRIMARY KEY,
+        titulo text NOT NULL,
+        detalhe text NOT NULL
+    );
+
+    INSERT INTO registros (id, titulo, detalhe) VALUES
+        (1, 'A1 profile', 'ICP-Brasil certificate stored in KV.'),
+        (2, 'Service TLS', 'Short-lived certificate from the PKI secrets engine.'),
+        (3, 'Dynamic credential', 'Read with a PostgreSQL role that Vault created for this lease.')
+    ON CONFLICT (id) DO NOTHING;
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: vault-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: docker.io/library/postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          envFrom:
+            - secretRef:
+                name: postgres
+          volumeMounts:
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "vault", "-d", "demo"]
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+      volumes:
+        - name: init
+          configMap:
+            name: postgres-init
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: vault-demo
+spec:
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
