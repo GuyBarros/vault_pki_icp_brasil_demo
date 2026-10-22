@@ -61,6 +61,14 @@ resource "vault_pki_secret_backend_intermediate_set_signed" "tls" {
   ])
 }
 
+# Importing the chain adds the intermediate and the root as issuers, and Vault
+# does not always pick a default. The intermediate is first in the chain.
+resource "vault_pki_secret_backend_config_issuers" "tls" {
+  backend                       = vault_mount.tls_int.path
+  default                       = vault_pki_secret_backend_intermediate_set_signed.tls.imported_issuers[0]
+  default_follows_latest_issuer = false
+}
+
 resource "vault_pki_secret_backend_config_urls" "tls" {
   backend = vault_mount.tls_int.path
   issuing_certificates = [
@@ -97,5 +105,5 @@ resource "vault_pki_secret_backend_role" "demo_server" {
   not_before_duration                = "30s"
   basic_constraints_valid_for_non_ca = true
 
-  depends_on = [vault_pki_secret_backend_intermediate_set_signed.tls]
+  depends_on = [vault_pki_secret_backend_config_issuers.tls]
 }

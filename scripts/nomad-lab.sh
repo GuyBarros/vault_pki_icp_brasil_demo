@@ -3,7 +3,7 @@
 # Requires VAULT_ADDR and VAULT_TOKEN. VAULT_SKIP_VERIFY=true skips TLS
 # verification for Terraform. The Nomad client must already be able to create
 # a child token with the demo-app policy in Vault namespace demo.
-# Both jobs use host networking and datacenter dc1.
+# Both jobs use host networking and run in any datacenter by default.
 
 set -euo pipefail
 
@@ -33,7 +33,7 @@ source "$root/deploy/podman/lab.env"
 set +a
 
 export VAULT_SKIP_VERIFY="${VAULT_SKIP_VERIFY:-false}"
-export TF_VAR_vault_namespace=demo
+export TF_VAR_vault_namespace=admin
 export TF_VAR_vault_address="${TF_VAR_vault_address:-$VAULT_ADDR}"
 export TF_VAR_postgres_admin_username="$POSTGRES_USER"
 export TF_VAR_postgres_admin_password="$POSTGRES_PASSWORD"
