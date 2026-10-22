@@ -7,8 +7,13 @@ variable "postgres_password" {
   default = "vault-lab-password"
 }
 
+variable "datacenters" {
+  type    = list(string)
+  default = ["*"]
+}
+
 job "vault-pki-demo-db" {
-  datacenters = ["dc1"]
+  datacenters = var.datacenters
   type        = "service"
 
   group "postgres" {

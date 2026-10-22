@@ -9,8 +9,13 @@ variable "image" {
   default = "vault-pki-icp-brasil-demo:local"
 }
 
+variable "datacenters" {
+  type    = list(string)
+  default = ["*"]
+}
+
 job "vault-pki-demo" {
-  datacenters = ["dc1"]
+  datacenters = var.datacenters
   type        = "service"
 
   group "app" {

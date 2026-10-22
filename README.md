@@ -153,7 +153,7 @@ Requires Nomad, Terraform, Python 3, curl, and either Podman or Docker. `VAULT_A
 ./scripts/nomad-teardown.sh
 ```
 
-The script builds `vault-pki-icp-brasil-demo:local`, starts PostgreSQL, applies Terraform, then starts the demo job. Both jobs use host networking and datacenter `dc1`, and they expect to land on the same client so the application can open PostgreSQL at `127.0.0.1:5432`. When Vault is on localhost, Terraform uses that address too. When Vault is elsewhere, set `TF_VAR_postgres_host` to the Nomad client address Vault can open.
+The script builds `vault-pki-icp-brasil-demo:local`, starts PostgreSQL, applies Terraform, then starts the demo job. Both jobs use host networking and run in any datacenter (override with `-var 'datacenters=["dc1"]'`), and they expect to land on the same client so the application can open PostgreSQL at `127.0.0.1:5432`. When Vault is on localhost, Terraform uses that address too. When Vault is elsewhere, set `TF_VAR_postgres_host` to the Nomad client address Vault can open.
 
 The Nomad client needs a `vault` stanza whose token can create a child token with the `demo-app` policy in the Vault namespace `demo`. On a cluster that only accepts workload identity, change the job's `vault` block to `role = "demo-app"` and bind that role to the job identity. The job's `namespace` must stay `demo`. The client must be able to run the image the script built. Templates use `change_mode = "noop"` because the application re-reads the files.
 
